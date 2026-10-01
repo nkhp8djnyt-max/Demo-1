@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>BrewBook · Demo</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="top">
+    <button class="icon-btn back" id="back" type="button" aria-label="Back" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg>
+      <div>
+        <div class="wordmark">BrewBook</div>
+        <div class="sub" id="sub">Coffee bar · Pickup</div>
+      </div>
+    </div>
+    <button class="pill-btn" id="orders-btn" type="button" hidden>My orders</button>
+  </header>
+
+  <main id="app">
+    <section class="view" id="view-loading">
+      <div class="loading"><span class="steam"></span><p>Warming up the machine…</p></div>
+    </section>
+
+    <section class="view" id="view-menu" hidden>
+      <p class="greeting" id="greeting"></p>
+      <p class="browser-note" id="browser-note" hidden>Browser demo: you're ordering as a guest. Inside Telegram you'd pay with Stars or crypto and get status messages in chat.</p>
+      <nav class="cats" id="cats" aria-label="Categories"></nav>
+      <div id="menu-list"></div>
+    </section>
+
+    <section class="view" id="view-cart" hidden>
+      <h1 class="h1">Your order</h1>
+      <ul class="cart" id="cart-list"></ul>
+      <label class="field">
+        <span class="label">Comment for the barista</span>
+        <textarea id="comment" rows="2" maxlength="200" placeholder="Extra hot, name on the cup, etc."></textarea>
+      </label>
+      <div class="totals" id="totals"></div>
+      <h2 class="h2">Payment</h2>
+      <div class="pay-options" id="pay-options" role="radiogroup" aria-label="Payment method"></div>
+    </section>
+
+    <section class="view" id="view-pay" hidden>
+      <div class="pay-wait">
+        <div class="pay-art" aria-hidden="true"><svg viewBox="0 0 48 48"><use href="#i-coin"/></svg></div>
+        <h1 class="h1" id="pay-title">Waiting for payment</h1>
+        <p class="muted" id="pay-text"></p>
+        <div class="demo-pay" id="demo-pay" hidden>
+          <span class="tag">Demo payment</span>
+          <p>No real money moves. This button marks the order as paid so you can see the rest of the flow.</p>
+          <button class="btn primary" id="demo-pay-btn" type="button">Pay with demo money</button>
+        </div>
+        <div class="row-btns" id="crypto-btns" hidden>
+          <button class="btn" id="crypto-open" type="button">Open invoice again</button>
+          <button class="btn" id="crypto-check" type="button">I've paid, check</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-order" hidden>
+      <div class="ticket" id="ticket"></div>
+    </section>
+
+    <section class="view" id="view-orders" hidden>
+      <h1 class="h1">My orders</h1>
+      <ul class="orders" id="orders-list"></ul>
+    </section>
+
+    <section class="view" id="view-blocked" hidden>
+      <div class="blocked">
+        <svg viewBox="0 0 40 40" class="logo big" aria-hidden="true"><use href="#logo"/></svg>
+        <h1 class="h1">Open BrewBook in Telegram</h1>
+        <p class="muted" id="blocked-text">This menu works inside the Telegram bot. Send /start to the bot and tap “Open menu”.</p>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <strong>Demo project.</strong> BrewBook is a fictional coffee shop made for a portfolio. No real orders are fulfilled.
+    </footer>
+  </main>
+
+  <div class="sheet-wrap" id="sheet" hidden>
+    <div class="scrim" data-close></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="grab" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <div class="tile" id="sheet-tile"></div>
+        <div>
+          <h2 class="h2" id="sheet-title"></h2>
+          <p class="muted small" id="sheet-desc"></p>
+        </div>
+      </div>
+      <div id="sheet-sizes" class="opt-group"></div>
+      <div id="sheet-milks" class="opt-group"></div>
+      <div class="opt-group qty-row">
+        <span class="label">Quantity</span>
+        <div class="stepper" id="sheet-qty"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-fallback" id="main-fallback" hidden>
+    <button class="btn primary block" id="main-fallback-btn" type="button"></button>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="logo" viewBox="0 0 40 40">
+        <rect x="1" y="1" width="38" height="38" rx="11" fill="var(--accent)"/>
+        <path d="M13 9.5c-1.2 1.5 1.2 2.6 0 4.1M19 8.5c-1.2 1.5 1.2 2.6 0 4.1M25 9.5c-1.2 1.5 1.2 2.6 0 4.1" fill="none" stroke="var(--on-accent)" stroke-width="1.6" stroke-linecap="round" opacity=".75"/>
+        <path d="M10 16h18v6.5a8 8 0 0 1-8 8h-2a8 8 0 0 1-8-8z" fill="var(--on-accent)"/>
+        <path d="M28 18h1.5a3 3 0 0 1 0 6H28" fill="none" stroke="var(--on-accent)" stroke-width="2"/>
+        <path d="M7 32.5c4-1.6 8.5-1.6 12.5 0 4-1.6 8.5-1.6 12.5 0" fill="none" stroke="var(--on-accent)" stroke-width="2" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="i-espresso" viewBox="0 0 48 48"><path d="M14 20h16v5a8 8 0 0 1-16 0z"/><path d="M30 22h2a3 3 0 0 1 0 6h-2.5"/><path d="M10 36h26"/><path d="M19 11c-1 1.5 1 2.5 0 4M25 11c-1 1.5 1 2.5 0 4"/></symbol>
+      <symbol id="i-cup" viewBox="0 0 48 48"><path d="M11 18h22v7a11 11 0 0 1-22 0z"/><path d="M33 20h2.5a3.5 3.5 0 0 1 0 7H32"/><path d="M8 39h28"/><path d="M22 23.5c-1.6-1.6-4 .4-2 2.2l2 1.8 2-1.8c2-1.8-.4-3.8-2-2.2z"/><path d="M17 9c-1 1.5 1 2.5 0 4M22 8c-1 1.5 1 2.5 0 4M27 9c-1 1.5 1 2.5 0 4"/></symbol>
+      <symbol id="i-latte" viewBox="0 0 48 48"><path d="M15 12h18l-2.5 27h-13z"/><path d="M15.8 20h16.4"/><path d="M16.6 27c3 1.4 11.8 1.4 14.8 0"/><path d="M27 12l3-6"/></symbol>
+      <symbol id="i-iced" viewBox="0 0 48 48"><path d="M14 14h20l-2.6 25H16.6z"/><path d="M26 14l4-9"/><rect x="18" y="21" width="5" height="5" rx="1"/><rect x="24" y="25" width="5" height="5" rx="1"/><path d="M15 19h18"/></symbol>
+      <symbol id="i-tea" viewBox="0 0 48 48"><path d="M10 19h24v6a12 12 0 0 1-24 0z"/><path d="M34 21h2a3.5 3.5 0 0 1 0 7h-3"/><path d="M22 19V11"/><rect x="19" y="7" width="6" height="5" rx="1"/><path d="M8 40h28"/></symbol>
+      <symbol id="i-bun" viewBox="0 0 48 48"><circle cx="24" cy="25" r="13"/><path d="M24 25c-4-6 6-8 6-2 0 5-9 7-12 2-3-6 3-11 8-10"/><path d="M14 33l-1 3M34 33l1 3"/></symbol>
+      <symbol id="i-croissant" viewBox="0 0 48 48"><path d="M8 30c2-9 9-15 16-15s14 6 16 15c-3 2-6 1-8-1-2 3-5 4-8 4s-6-1-8-4c-2 2-5 3-8 1z"/><path d="M20 16.5l2 13M28 16.5l-2 13M14 21l4 8.5M34 21l-4 8.5"/></symbol>
+      <symbol id="i-loaf" viewBox="0 0 48 48"><path d="M9 22a8 8 0 0 1 8-8h14a8 8 0 0 1 8 8v2h-2v12H11V24H9z"/><path d="M17 22c1.5-1.5 3-1.5 4.5 0M26.5 22c1.5-1.5 3-1.5 4.5 0"/><path d="M20 30h8"/></symbol>
+      <symbol id="i-coin" viewBox="0 0 48 48"><circle cx="24" cy="24" r="15"/><circle cx="24" cy="24" r="10"/><path d="M24 18v12M21 21h4.5a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3H27"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.8l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.6l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></symbol>
+    </defs>
+  </svg>
+  <script src="app.js"></script>
+</body>
+</html>

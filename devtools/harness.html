@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BrewBook · Telegram simulator (mock mode)</title>
+<style>
+  :root { --bg:#E9E4DD; --panel:#fff; --line:#d9d1c7; --text:#222; --hint:#7c736a; --bubble:#fff; --mine:#E7F8D9; --btn:#3D8BD3; }
+  body.dark { --bg:#0f1317; --panel:#17212b; --line:#2b3947; --text:#f2f2f2; --hint:#8a97a3; --bubble:#182533; --mine:#2b5278; --btn:#5ea3e0; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .bar { display:flex; gap:12px; align-items:center; padding:10px 18px; font-size:13px; color:var(--hint); }
+  .bar b { color:var(--text); }
+  .bar button { margin-left:auto; }
+  .stage { display:grid; grid-template-columns: 390px 1fr 1fr; gap:18px; padding:0 18px 18px; height: calc(100vh - 44px); }
+  .phone { background:var(--panel); border-radius:28px; overflow:hidden; display:flex; flex-direction:column; border:1px solid var(--line); }
+  .phone-head { padding:10px 14px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--line); min-height:46px; }
+  .phone-head .title { font-weight:600; flex:1; }
+  .phone-head button, .tgbtn { background:none; border:0; color:var(--btn); font:inherit; cursor:pointer; }
+  iframe { flex:1; border:0; width:100%; background:#fff; }
+  .mainbtn { margin:8px; padding:14px; border-radius:12px; border:0; font:600 15px/1 inherit; cursor:pointer; }
+  .mainbtn[disabled] { opacity:.6; }
+  .chat { background:var(--panel); border-radius:18px; border:1px solid var(--line); display:flex; flex-direction:column; overflow:hidden; }
+  .chat h3 { margin:0; padding:12px 14px; border-bottom:1px solid var(--line); font-size:14px; }
+  .chat h3 small { color:var(--hint); font-weight:400; }
+  .msgs { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; background:var(--bg); }
+  .msg { background:var(--bubble); border-radius:12px; padding:9px 12px; max-width:92%; white-space:pre-wrap; box-shadow:0 1px 1px rgba(0,0,0,.08); }
+  .msg.mine { background:var(--mine); align-self:flex-end; }
+  .kb { display:flex; gap:6px; margin-top:6px; }
+  .kb button { flex:1; padding:8px; border-radius:8px; border:0; background:rgba(61,139,211,.14); color:var(--btn); font-weight:600; cursor:pointer; }
+  .compose { display:flex; gap:6px; padding:8px; border-top:1px solid var(--line); }
+  .compose button { padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--text); cursor:pointer; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:grid; place-items:center; z-index:5; }
+  .modal .card { background:var(--panel); color:var(--text); border-radius:16px; padding:22px; width:320px; text-align:center; }
+  .modal .card h4 { margin:0 0 6px; font-size:17px; }
+  .modal .card p { color:var(--hint); margin:0 0 16px; }
+  .modal .card .pay { width:100%; padding:12px; border:0; border-radius:10px; background:var(--btn); color:#fff; font-weight:600; cursor:pointer; margin-bottom:8px; }
+  .modal .card .cancel { background:none; border:0; color:var(--hint); cursor:pointer; }
+  .closed { flex:1; display:grid; place-items:center; color:var(--hint); padding:30px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="bar"><b>Telegram simulator</b> · mock mode: fake Bot API and Crypto Pay, real Mini App + real telegram-web-app.js
+  <button id="theme" type="button">Toggle dark theme</button></div>
+<div class="stage">
+  <div class="phone">
+    <div class="phone-head"><button id="tg-back" type="button" hidden>‹ Back</button><span class="title">BrewBook</span><button id="tg-close" type="button">Close</button></div>
+    <div class="closed" id="closed">Send /start in the customer chat and tap “Open menu”.</div>
+    <iframe id="app" title="Mini App" hidden></iframe>
+    <button class="mainbtn" id="tg-main" type="button" hidden></button>
+  </div>
+  <div class="chat"><h3>@BrewBookDemoBot <small>· customer chat (Mia)</small></h3><div class="msgs" id="customer"></div>
+    <div class="compose"><button data-send="/start" type="button">/start</button><button data-send="/orders" type="button">/orders</button></div></div>
+  <div class="chat"><h3>Baristas <small>· group chat</small></h3><div class="msgs" id="baristas"></div>
+    <div class="compose"><button data-send="/orders" data-chat="baristas" type="button">/orders</button></div></div>
+</div>
+<div class="modal" id="modal" hidden><div class="card" id="modal-card"></div></div>
+<script>
+const INIT_DATA = __INIT_DATA__;
+let dark = new URLSearchParams(location.search).get("theme") === "dark";
+const themes = {
+  light: { bg_color:"#ffffff", text_color:"#000000", hint_color:"#999999", link_color:"#2481cc", button_color:"#2481cc", button_text_color:"#ffffff", secondary_bg_color:"#efeff3" },
+  dark: { bg_color:"#17212b", text_color:"#f5f5f5", hint_color:"#708499", link_color:"#6ab3f3", button_color:"#5288c1", button_text_color:"#ffffff", secondary_bg_color:"#232e3c" },
+};
+const frame = document.getElementById("app");
+const post = (eventType, eventData) => frame.contentWindow && frame.contentWindow.postMessage(JSON.stringify({ eventType, eventData }), "*");
+const mine = { customer: [], baristas: [] };
+
+function openApp() {
+  const t = themes[dark ? "dark" : "light"];
+  frame.src = "/app/#tgWebAppData=" + encodeURIComponent(INIT_DATA) + "&tgWebAppVersion=8.0&tgWebAppPlatform=weba&tgWebAppThemeParams=" + encodeURIComponent(JSON.stringify(t));
+  frame.hidden = false; document.getElementById("closed").hidden = true;
+}
+function closeApp() {
+  frame.src = "about:blank"; frame.hidden = true; document.getElementById("closed").hidden = false;
+  document.getElementById("tg-main").hidden = true; document.getElementById("tg-back").hidden = true;
+}
+document.getElementById("tg-close").onclick = closeApp;
+document.getElementById("theme").onclick = () => {
+  dark = !dark; document.body.classList.toggle("dark", dark);
+  post("theme_changed", { theme_params: themes[dark ? "dark" : "light"] });
+};
+document.body.classList.toggle("dark", dark);
+document.getElementById("tg-back").onclick = () => post("back_button_pressed");
+document.getElementById("tg-main").onclick = () => post("main_button_pressed");
+
+function modal(html) { document.getElementById("modal-card").innerHTML = html; document.getElementById("modal").hidden = false; }
+function closeModal() { document.getElementById("modal").hidden = true; }
+
+window.addEventListener("message", async (e) => {
+  if (e.source !== frame.contentWindow) return;
+  let m; try { m = JSON.parse(e.data); } catch { return; }
+  const d = m.eventData || {};
+  const mb = document.getElementById("tg-main");
+  switch (m.eventType) {
+    case "web_app_setup_main_button":
+      mb.hidden = !d.is_visible; mb.textContent = d.is_progress_visible ? "…" : d.text;
+      mb.style.background = d.color || "#2481cc"; mb.style.color = d.text_color || "#fff"; mb.disabled = !d.is_active;
+      break;
+    case "web_app_setup_back_button": document.getElementById("tg-back").hidden = !d.is_visible; break;
+    case "web_app_close": closeApp(); break;
+    case "web_app_set_header_color": if (d.color) document.querySelector(".phone-head").style.background = d.color; break;
+    case "web_app_open_invoice": {
+      const order = d.slug.split("-").pop();
+      modal(`<h4>⭐ Telegram Stars</h4><p>Order #${order} · BrewBook (simulated invoice)</p>
+        <button class="pay" id="pay-yes">Confirm and pay</button><button class="cancel" id="pay-no">Cancel</button>`);
+      document.getElementById("pay-yes").onclick = async () => {
+        const r = await (await fetch(`/dev/stars/${d.slug}`, { method: "POST" })).json();
+        closeModal(); post("invoice_closed", { slug: d.slug, status: r.status });
+      };
+      document.getElementById("pay-no").onclick = () => { closeModal(); post("invoice_closed", { slug: d.slug, status: "cancelled" }); };
+      break;
+    }
+    case "web_app_open_tg_link": {
+      const inv = (d.path_full.match(/IV(\d+)/) || [])[1];
+      modal(`<h4>🪙 CryptoBot testnet</h4><p>Invoice IV${inv} (simulated). Pay with test coins.</p>
+        <button class="pay" id="cp-yes">Pay in test USDT</button><button class="cancel" id="cp-no">Back</button>`);
+      document.getElementById("cp-yes").onclick = async () => {
+        await fetch(`/dev/crypto/pay/${inv}`, { method: "POST" }); closeModal(); post("activated", {});
+      };
+      document.getElementById("cp-no").onclick = closeModal;
+      break;
+    }
+  }
+});
+
+async function send(text, chat) {
+  mine[chat || "customer"].push(text);
+  await fetch("/dev/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, chat }) });
+  refresh();
+}
+document.querySelectorAll("[data-send]").forEach((b) => (b.onclick = () => send(b.dataset.send, b.dataset.chat)));
+
+let lastSig = "";
+async function refresh() {
+  const chats = await (await fetch("/dev/chats")).json();
+  const sig = JSON.stringify(chats);
+  if (sig === lastSig) return; lastSig = sig;
+  for (const key of ["customer", "baristas"]) {
+    const box = document.getElementById(key);
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    box.innerHTML = chats[key].map((m) => `<div class="msg" data-id="${m.id}">${m.html}${m.buttons.map((row) =>
+      `<div class="kb">${row.map((b) => `<button type="button" ${b.web_app ? 'data-open="1"' : `data-tap="${b.data}"`}>${b.text}</button>`).join("")}</div>`).join("")}</div>`).join("");
+    if (atBottom || true) box.scrollTop = box.scrollHeight;
+  }
+}
+document.addEventListener("click", async (e) => {
+  const open = e.target.closest("[data-open]"), tap = e.target.closest("[data-tap]");
+  if (open) openApp();
+  if (tap) {
+    const id = Number(tap.closest(".msg").dataset.id);
+    await fetch("/dev/tap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: tap.dataset.tap, message_id: id }) });
+    refresh();
+  }
+});
+setInterval(refresh, 1000); refresh();
+</script>
+</body>
+</html>
